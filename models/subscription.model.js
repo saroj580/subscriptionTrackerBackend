@@ -20,7 +20,7 @@ const subscriptionSchema = new mongoose.Schema({
     },
     frequency: {
         type: String,
-        enum : ['Daily', 'Weekly', 'Monthly', 'Yearly'],
+        enum : ['daily', 'weekly', 'monthly', 'yearly'],
     },
     category: {
         type: String,
@@ -50,11 +50,9 @@ const subscriptionSchema = new mongoose.Schema({
     },
     renewalDate:{
         type: Date,
-        default: Date.now,
-        required: true,
         validate: {
             validator: function (value) {
-                return value > this.StartDate;
+                return value > this.startDate;
             },
             message: 'Renewal date must be after start date.'
         }
@@ -70,26 +68,25 @@ const subscriptionSchema = new mongoose.Schema({
 
 
 //auto-calculate renewal date if missing
-subscriptionSchema.pre('save', function (next) {
-    if(!this.renewalDate){
-        const renewalPeriods = {
-             daily : 1,
-            weekly : 7,
-            monthly : 30,
-            yearly : 365
-        };
-
-
+subscriptionSchema.pre('validate', function (next) {
+    const renewalPeriods = {
+        daily : 1,
+        weekly : 7,
+        monthly : 30,
+        yearly : 365
+    };
+    const freq = this.frequency?.toLowerCase();
+    if (!this.renewalDate && freq && renewalPeriods[freq]) {
         this.renewalDate = new Date(this.startDate);
-        //Basically what we are doing that
-        //user start the subscription on date Jan 1st
-        //the frequency of the subscription is Monthly
-        //then it will calculate and the subscription will be ended in Jan 31st
-        this.renewalDate.setDate(this.renewalDate.getDate() + renewalPeriods[this.frequency]);
+    //Basically what we are doing that
+    //user start the subscription on date Jan 1st
+    //the frequency of the subscription is Monthly
+    //then it will calculate and the subscription will be ended in Jan 31st
+    this.renewalDate.setDate(this.renewalDate.getDate() + renewalPeriods[freq]);
     }
 
     //Auto-update the status if renewal date has passed
-    if(this.renewalDate < new Date()){
+    if(this.renewalDate && this.renewalDate < new Date()){
         this.status = 'expired';
     }
 
